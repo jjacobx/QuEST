@@ -31,6 +31,8 @@ set(PRECISION 2 CACHE STRING
 
 option(GPUACCELERATED "Whether to program will run on GPU. Set to 1 to enable" 0)
 
+option(PROFILING "Turns on ARM MAP profiling" 0)
+
 set(GPU_COMPUTE_CAPABILITY 30 CACHE STRING "GPU hardware dependent, lookup at https://developer.nvidia.com/cuda-gpus. Write without fullstop")
 
 option(USE_HIP "Whether to use HIP for GPU code compilation for AMD GPUs. Set to 1 to enable" 0)
@@ -47,6 +49,7 @@ message(STATUS "Precision is ${PRECISION}")
 message(STATUS "GPU acceleration is ${GPUACCELERATED}")
 message(STATUS "OMP acceleration is ${MULTITHREADED}")
 message(STATUS "MPI distribution is ${DISTRIBUTED}")
+message(STATUS "Profiling is ${PROFILING}")
 if (${GPUACCELERATED})
   message(STATUS "HIP compilation is ${USE_HIP}")
 endif()
@@ -160,15 +163,9 @@ if (${MULTITHREADED} AND NOT ${GPUACCELERATED})
     # Version number is not cached, and we need to test for old versions
     set(OpenMP_C_VERSION ${OpenMP_C_VERSION} CACHE STRING "OpenMP C version")
 
-    # MSVC, for instance, only implements OpenMP 2.0 (as of 2019)
-    if (OpenMP_C_VERSION VERSION_LESS "2.0")  # todo find the real minimum required
-      set(MULTITHREADED 0)
-      message(WARNING "Found OpenMP ${OpenMP_C_VERSION} but this is too \
-             old. Turning OpenMP support OFF.")
-    else ()
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    endif ()
+    # Because of a bug in version checking, we'll assume it is not too old
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
   endif ()
 
 endif ()
@@ -414,6 +411,17 @@ if (USE_HIP)
   target_link_libraries(QuEST PUBLIC  ${HIP_PATH}/lib/libamdhip64.so )
 else()
   target_link_libraries(QuEST ${CUDA_LIBRARIES})
+endif()
+
+# ----- Profiling -------------------------------------------------------------
+
+if (${PROFILING})
+  set(FORGE_DIR $ENV{FORGE_DIR})
+  set (ARM_MAP_FLAGS -L${FORGE_DIR}/map/libs/default/cray/ofi
+    -lmap-sampler-pmpi -lmap-sampler
+    -Wl,--eh-frame-hdr -Wl,-rpath=${FORGE_DIR}/map/libs/default/cray/ofi
+  )
+  target_link_libraries(QuEST PUBLIC ${ARM_MAP_FLAGS})
 endif()
 
 # ----- Coverage testing with GCC or Clang ------------------------------------
