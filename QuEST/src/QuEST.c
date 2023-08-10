@@ -28,7 +28,14 @@
 extern "C" {
 #endif
     
-    
+int nonBlockingExchangeFlag() {
+#ifndef NONBLOCKING_EXCHANGE
+    return 0;
+#else
+    return 1;
+#endif
+}
+
 /*
  * state-vector management
  */

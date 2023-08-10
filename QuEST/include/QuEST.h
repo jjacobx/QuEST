@@ -39,6 +39,7 @@
 extern "C" {
 #endif
 
+int nonBlockingExchangeFlag();
 
 /*
  * private structures
